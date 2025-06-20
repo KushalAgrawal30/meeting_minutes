@@ -3,5 +3,5 @@ __pycache__/
 lib/
 .DS_Store
 
-meeting_minutes/src/meeting_minutes/crews/gmailcrew/tools/token.json
-meeting_minutes/src/meeting_minutes/crews/gmailcrew/tools/credentials.json
+**/token.json
+**/credentials.json
