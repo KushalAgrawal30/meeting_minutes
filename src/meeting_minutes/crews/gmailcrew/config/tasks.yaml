@@ -1,6 +1,9 @@
 gmail_draft_task:
   description: >
     Send an email to the client with the meeting minutes using the provided body: {body}
+    receivers mail: {to},
+    sender email: {sender},
+    subject: {subject}
   expected_output: >
     To return whether the email was sent succesfully or not
   agent: gmail_draft_agent   

@@ -24,7 +24,7 @@ HTML_TEMPLATE = """
     </html>
 """
 
-def authenticate_gmail():
+def authenticate_gmail(user_email):
     """Shows basic usage of the Gmail API.
         Returns:
         service: Authorized Gmail API service instance.
@@ -32,7 +32,7 @@ def authenticate_gmail():
     try:
         # Get the directory where this script is located
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        token_path = os.path.join(current_dir, 'token.json')
+        token_path = os.path.join(current_dir, f'token{user_email}.json')
         credentials_path = os.path.join(current_dir, 'credentials.json')
 
         creds = None

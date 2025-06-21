@@ -8,10 +8,17 @@ from pydub.utils import make_chunks
 from pathlib import Path
 import whisper
 from datetime import date
+import datetime
 import os
+import re
+
+import streamlit as st
 
 from crews.meeting_minutes_crew.meeting_minutes_crew import MeetingMinutesCrew
 from crews.gmailcrew.gmailcrew import Gmailcrew
+
+def is_valid_mail(email):
+    return re.match(r"[^@]+@[^@]+\.[^@]+", email)
 
 
 load_dotenv()
@@ -19,7 +26,6 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 model = whisper.load_model("base")
 
-# client = genai.Client(api_key="GEMINI_API_KEY")
 
 class MeetingMinutesState(BaseModel):
     transcript: str = ""
@@ -27,11 +33,20 @@ class MeetingMinutesState(BaseModel):
 
 
 class MeetingMinutesFlow(Flow[MeetingMinutesState]):
+    def __init__(self, organizer_name, company_name, today_date,  meeting_platform, sender_mail, subject, to_mails):
+        super().__init__()
+        self.organizer_name = organizer_name
+        self.company_name = company_name
+        self.today_date = today_date
+        self.meeting_platform = meeting_platform
+        self.sender_mail = sender_mail
+        self.subject = subject
+        self.to_mails = to_mails
+
 
     @start()
     def transcribe_meeting(self):
         print("Generating Transcription")
-
         SCRIPT_DIR = Path(__file__).parent
         audio_path = str(SCRIPT_DIR / "EarningsCall.wav")
 
@@ -64,10 +79,10 @@ class MeetingMinutesFlow(Flow[MeetingMinutesState]):
         crew = MeetingMinutesCrew()
         inputs = {
             "transcript": self.state.transcript,
-            "date_today": date.today().strftime("%B %d %Y"),
-            "company_name": "RootAgent",
-            "organizer_name": "Kushal",
-            "location": "Google Meet"
+            "date_today": self.today_date,
+            "company_name": self.company_name,
+            "organizer_name": self.organizer_name,
+            "location": self.meeting_platform
         }
         meeting_minutes = crew.crew().kickoff(inputs)
         print(type(meeting_minutes))
@@ -87,18 +102,74 @@ class MeetingMinutesFlow(Flow[MeetingMinutesState]):
         crew = Gmailcrew()
 
         inputs = {
-            "body": self.state.meeting_minutes
+            "body": self.state.meeting_minutes,
+            "sender": self.sender_mail,
+            "subject": self.subject,
+            "to": self.to_mails
         }
 
         draft_crew = crew.crew().kickoff(inputs)
         print(f"Draft crew: {draft_crew}")
+        return self.state.meeting_minutes
+
+# def kickoff():
+#     meeting_minutes_flow = MeetingMinutesFlow()
+#     meeting_minutes_flow.plot()
+#     meeting_minutes_flow.kickoff()
 
 
-def kickoff():
-    meeting_minutes_flow = MeetingMinutesFlow()
-    meeting_minutes_flow.plot()
-    meeting_minutes_flow.kickoff()
+# if __name__ == "__main__":
+#     kickoff()
 
 
-if __name__ == "__main__":
-    kickoff()
+st.set_page_config(layout="wide")
+
+col1, col2 = st.columns([1,2])
+
+with col1:
+    with st.form("my_form"):
+        organizer_name = st.text_input("Enter name")
+        company_name = st.text_input("Enter company name")
+        today_date = st.date_input("Enter meeting date", datetime.date.today())
+        meeting_platform = st.text_input("Enter meeting platform")
+        sender_mail = st.text_input("Enter senders mail")
+        subject = st.text_input("Enter Subject")
+        to_mail_options = st.multiselect(
+            "Enter receivers mail",
+            key="to_emails",
+            accept_new_options=True,
+            options=[]
+        )
+        submit = st.form_submit_button('Generate minutes')
+
+
+with col2:
+    st.title('Crew AI Meeting Minutes')
+
+def submit_form():
+    if not(organizer_name and company_name and sender_mail):
+        st.warning("Please enter all details")
+        return
+    else:
+        if not is_valid_mail(sender_mail):
+            st.warning("Please enter a vlaid email")
+            return
+    
+    with col2:
+        with st.spinner("Generating mail draft..."):
+            meeting_minutes_flow = MeetingMinutesFlow(
+                organizer_name,
+                company_name,
+                today_date.strftime("%B %d %Y"),
+                meeting_platform,
+                sender_mail,
+                subject,
+                ",".join(to_mail_options)
+            )
+            mail_draft = meeting_minutes_flow.kickoff()
+            st.markdown(mail_draft)
+
+if submit:
+    submit_form()
+    
+            
