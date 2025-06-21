@@ -48,8 +48,7 @@ class MeetingMinutesFlow(Flow[MeetingMinutesState]):
     def transcribe_meeting(self):
         print("Generating Transcription")
         SCRIPT_DIR = Path(__file__).parent
-        audio_path = str(SCRIPT_DIR / "EarningsCall.wav")
-
+        audio_path = str(SCRIPT_DIR / uploaded_file.name)
         audio = AudioSegment.from_file(audio_path, format="wav")
 
         chunk_length_ms = 60000
@@ -60,6 +59,7 @@ class MeetingMinutesFlow(Flow[MeetingMinutesState]):
         for i, chunk in enumerate(chunks):
 
             print(f"Transcribing chunks {i+1}/{len(chunks)}")
+            # placeholder.markdown(f"<h3 style='font-size:22px;'>Transcribing chunks {i+1}/{len(chunks)}</h3>", unsafe_allow_html=True)
             chunk_path = f"{SCRIPT_DIR}/chunk_{i}.wav"
             chunk.export(chunk_path, format="wav")
             
@@ -69,6 +69,7 @@ class MeetingMinutesFlow(Flow[MeetingMinutesState]):
             os.remove(chunk_path)
         
         self.state.transcript = full_transcription
+        os.remove(audio_path)
         print(f"Transcription {self.state.transcript}")
 
 
@@ -76,6 +77,7 @@ class MeetingMinutesFlow(Flow[MeetingMinutesState]):
     @listen(transcribe_meeting)
     def generate_meeting_minutes(self):
         print("Generating Meeting Minutes")
+        # placeholder.markdown("<h3 style='font-size:22px;'>Generating Meeting Minutes...</h3>", unsafe_allow_html=True)
         crew = MeetingMinutesCrew()
         inputs = {
             "transcript": self.state.transcript,
@@ -98,6 +100,7 @@ class MeetingMinutesFlow(Flow[MeetingMinutesState]):
     # @start()
     def create_draft_meeting_minutes(self):
         print("Creating draft Meeting Minutes")
+        # placeholder.markdown("<h3 style='font-size:22px;'>Creating draft Meeting Minutes</h3>", unsafe_allow_html=True)
 
         crew = Gmailcrew()
 
@@ -110,7 +113,9 @@ class MeetingMinutesFlow(Flow[MeetingMinutesState]):
 
         draft_crew = crew.crew().kickoff(inputs)
         print(f"Draft crew: {draft_crew}")
+        # placeholder.markdown("")
         return self.state.meeting_minutes
+    
 
 # def kickoff():
 #     meeting_minutes_flow = MeetingMinutesFlow()
@@ -121,12 +126,25 @@ class MeetingMinutesFlow(Flow[MeetingMinutesState]):
 # if __name__ == "__main__":
 #     kickoff()
 
+st.markdown("""
+    <style>
+        .st-emotion-cache-zy6yx3 {
+            padding-top: 1rem;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+st.title('Crew AI Meeting Minutes')
+st.divider()
 
 st.set_page_config(layout="wide")
+
 
 col1, col2 = st.columns([1,2])
 
 with col1:
+    uploaded_file = st.file_uploader("Upload an audio file", type=["mp3", "wav", "ogg"])
+
     with st.form("my_form"):
         organizer_name = st.text_input("Enter name")
         company_name = st.text_input("Enter company name")
@@ -144,7 +162,9 @@ with col1:
 
 
 with col2:
-    st.title('Crew AI Meeting Minutes')
+    st.header("Minutes Minutes:")
+    # placeholder = st.empty()
+
 
 def submit_form():
     if not(organizer_name and company_name and sender_mail):
@@ -156,6 +176,7 @@ def submit_form():
             return
     
     with col2:
+        # placeholder.markdown("<h3 style='font-size:22px;'>Saving audio...</h3>", unsafe_allow_html=True)
         with st.spinner("Generating mail draft..."):
             meeting_minutes_flow = MeetingMinutesFlow(
                 organizer_name,
@@ -167,9 +188,25 @@ def submit_form():
                 ",".join(to_mail_options)
             )
             mail_draft = meeting_minutes_flow.kickoff()
-            st.markdown(mail_draft)
+        st.markdown(f'''{mail_draft.replace("```markdown", "").replace("```","")}''')
+
+def save_auido():   
+    SCRIPT_DIR = Path(__file__).parent
+    with open(os.path.join(SCRIPT_DIR, uploaded_file.name), "wb") as f:
+        f.write(uploaded_file.getbuffer())
+    st.write(f"Saved file: {uploaded_file.name}")
+
+
+# if uploaded_file is not None:
+#     save_auido()
+#     submit_form()
+
 
 if submit:
-    submit_form()
-    
+    if uploaded_file is not None:
+        save_auido()
+        submit_form()
+    else:
+        st.warning('Upload a file')
             
+
